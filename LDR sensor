@@ -1,0 +1,23 @@
+#define LDR_PIN 19
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(LDR_PIN, INPUT);
+}
+
+void loop() {
+  int ldrValue = analogRead(LDR_PIN);
+
+  Serial.print("LDR Value: ");
+  Serial.println(ldrValue);
+
+  if (ldrValue > 1000) { // Adjust this threshold based on your LDR and environment
+    Serial.println("Room is dark, open the blinds.");
+    // Add code here to control blinds (e.g., using a motor or servo)
+  } else {
+    Serial.println("Room is bright, don't open the blinds.");
+    // Optionally close the blinds here if they are open
+  }
+
+  delay(1000); // Wait for 1 second before reading again
+}
