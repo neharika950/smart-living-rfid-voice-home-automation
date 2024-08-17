@@ -1,0 +1,47 @@
+#include <ESP32Servo.h>
+
+const int servoPin = 20;
+Servo servo;
+
+// Initial position of the servo (assuming 0 degrees is fully closed, and 180 degrees is fully open)
+int pos = 0;
+bool blindsOpen = false;  // Flag to track the state of the blinds
+
+void setup() {
+  servo.attach(servoPin, 500, 2400);
+  Serial.begin(9600);
+  Serial.println("Curtain blinds control initialized");
+}
+
+void loop() {
+  if (blindsOpen) {
+    closeBlinds();
+  } else {
+    openBlinds();
+  }
+
+  // Simulate a delay between opening and closing (e.g., 5 seconds)
+  delay(5000);
+}
+
+// Function to open the blinds (move servo to 180 degrees)
+void openBlinds() {
+  Serial.println("Opening blinds...");
+  for (pos = 0; pos <= 180; pos += 1) {
+    servo.write(pos);
+    delay(10);
+  }
+  blindsOpen = true;
+  Serial.println("Blinds are now open.");
+}
+
+// Function to close the blinds (move servo back to 0 degrees)
+void closeBlinds() {
+  Serial.println("Closing blinds...");
+  for (pos = 180; pos >= 0; pos -= 1) {
+    servo.write(pos);
+    delay(10);
+  }
+  blindsOpen = false;
+  Serial.println("Blinds are now closed.");
+}
