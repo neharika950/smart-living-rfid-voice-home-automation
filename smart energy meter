@@ -1,0 +1,160 @@
+#define BLYNK_TEMPLATE_ID "TMPL3pX4NDRuF"
+#define BLYNK_TEMPLATE_NAME "Smart energy conservation system"
+#define BLYNK_AUTH_TOKEN "xiL9OxSRmVE2LT04OSLwb6CzTs69Vcoi"
+
+#include <BlynkSimpleEsp32.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include "EmonLib.h"
+#include <EEPROM.h>
+#include <WiFi.h>
+#include <WiFiClient.h>
+#include <DHT.h>
+
+#define SCREEN_WIDTH 128 // OLED width,  in pixels
+#define SCREEN_HEIGHT 64 // OLED height, in pixels
+
+// Create an OLED display object connected to I2C
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire);
+
+const char* ssid = "Wokwi-GUEST";
+const char* password = "";
+
+const int voltagePin = 35;  // Analog input pin for voltage measurement
+const int currentPin = 40;  // Analog input pin for current measurement
+const int redLedPin = 45;    // Digital output pin for red LED
+const int greenLedPin = 39;  // Digital output pin for green LED
+
+// Add temperature sensor pins and objects
+#define DHTPIN 15     // Pin connected to the DHT11 sensor
+#define DHTTYPE DHT22 // DHT 22 (AM2302)
+DHT dht(DHTPIN, DHTTYPE);
+
+EnergyMonitor currentSensor;
+
+float voltage, current, power, powerConsumption, temperature, costOfElectricity;
+unsigned long previousMillis = 0; // Variable to store the time of the last update
+unsigned long totalMillis = 0;    // Variable to store the total elapsed time
+
+// Electricity rate per kWh in INR
+float electricityRate = 7.0; // Example rate of INR 7.00 per kWh
+
+BlynkTimer timer;
+
+void setup() {
+  Serial.begin(115200);
+  
+  if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+    Serial.println(F("SSD1306 allocation failed"));
+    for(;;);
+  }
+  delay(500);
+  display.clearDisplay();
+  display.setTextColor(WHITE);
+
+  Blynk.begin(BLYNK_AUTH_TOKEN, ssid, password);
+
+  pinMode(voltagePin, INPUT);
+  pinMode(currentPin, INPUT);
+  pinMode(redLedPin, OUTPUT);  // Set red LED pin as output
+  pinMode(greenLedPin, OUTPUT); // Set green LED pin as output
+
+  // Initialize DHT sensor
+  dht.begin();
+
+  timer.setInterval(1000L, sendDataToBlynk); // Send data to Blynk every 1 second
+}
+
+void sendDataToBlynk() {
+  // Read raw analog values
+  int rawVoltage = analogRead(voltagePin);
+  int rawCurrent = analogRead(currentPin);
+
+  // Convert raw values to physical quantities
+  voltage = (rawVoltage / 4095.0) * 240;  // Assuming 240V reference
+
+  float currentVoltage = (rawCurrent / 4095.0) * 5; // Assuming 5V reference
+  const float sensorSensitivity = 0.1; // Sensor sensitivity in V/A (adjust according to datasheet)
+  current = currentVoltage / sensorSensitivity; // Calculate current in Amperes
+  power = voltage * current; // Calculate power in Watts
+  
+  // Calculate elapsed time since last update
+  unsigned long currentMillis = millis();
+  unsigned long elapsedTime = currentMillis - previousMillis;
+  previousMillis = currentMillis;
+  totalMillis += elapsedTime;
+
+  // Calculate power consumption
+  float elapsedTimeHours = totalMillis / 3600000.0; // Convert milliseconds to hours
+  powerConsumption = (power / 1000.0) * elapsedTimeHours; // Convert power to kWh and multiply by elapsed time
+  costOfElectricity = powerConsumption * electricityRate; // Multiply by electricity rate in INR
+
+  // Read temperature from DHT22 sensor
+  temperature = dht.readTemperature();
+
+  if (isnan(temperature)) {
+    Serial.println(F("Failed to read from DHT sensor!"));
+    return;
+  }
+
+  Serial.print("Voltage: ");
+  Serial.print(voltage);
+  Serial.print(" V, Current: ");
+  Serial.print(current);
+  Serial.print(" A, Power/H: ");
+  Serial.print(powerConsumption);
+  Serial.print(" kWh, Temperature: ");
+  Serial.print(temperature);
+  Serial.print(" °C, Cost: INR ");
+  Serial.println(costOfElectricity, 2);
+  
+  Blynk.virtualWrite(V0, voltage); // Send voltage value to Blynk's virtual pin V0
+  Blynk.virtualWrite(V1, current); // Send current value to Blynk's virtual pin V1
+  Blynk.virtualWrite(V2, powerConsumption);   // Send power consumption value to Blynk's virtual pin V2
+  Blynk.virtualWrite(V3, temperature); // Send temperature value to Blynk's virtual pin V3
+  Blynk.virtualWrite(V4, costOfElectricity); // Send cost of electricity to Blynk's virtual pin V4
+
+  // Light up red LED if temperature is above 40°C, otherwise light up green LED
+  if (temperature > 40) {
+    digitalWrite(redLedPin, HIGH);  // Turn on red LED
+    digitalWrite(greenLedPin, LOW); // Turn off green LED
+  } else {
+    digitalWrite(redLedPin, LOW);   // Turn off red LED
+    digitalWrite(greenLedPin, HIGH); // Turn on green LED
+  }
+}
+
+void loop() {
+  Blynk.run();
+  timer.run();
+
+  // Display values on the OLED
+  display.clearDisplay(); // Clear display before drawing new values
+  display.setTextSize(1);
+  display.setTextColor(WHITE);
+  display.setCursor(0, 0);
+  display.print("Voltage (V): ");
+  display.println(voltage, 2);
+
+  display.setCursor(0, 16);
+  display.print("Current (A): ");
+  display.println(current, 2);
+
+  display.setCursor(0, 32);
+  display.print("Power/H: ");
+  display.println(powerConsumption, 2);
+
+  display.setCursor(0, 48);
+  display.print("Temperature: ");
+  display.println(temperature, 2);
+  display.println("°C");
+
+  display.setCursor(0, 64);
+  display.print("Cost: INR ");
+  display.println(costOfElectricity, 2);
+
+  display.display();
+}
+
+
