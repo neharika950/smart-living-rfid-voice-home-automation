@@ -45,3 +45,4 @@ void closeBlinds() {
   blindsOpen = false;
   Serial.println("Blinds are now closed.");
 }
+
