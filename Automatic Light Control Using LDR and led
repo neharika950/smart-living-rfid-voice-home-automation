@@ -1,0 +1,36 @@
+#define PIR_PIN 13    // Pin connected to the PIR sensor's OUT pin
+#define LED_PIN 12    // Pin connected to the LED
+
+unsigned long motionDetectedTime = 0;  // Time when motion is detected
+unsigned long noMotionDelay = 10000;   // Time (in milliseconds) to wait before turning off the LED (e.g., 10 seconds)
+bool ledOn = false;                    // Status of the LED (on or off)
+
+void setup() {
+  pinMode(PIR_PIN, INPUT);             // PIR sensor pin as input
+  pinMode(LED_PIN, OUTPUT);             // LED pin as output
+  Serial.begin(115200);                // Initialize serial communication at 115200 baud rate
+  digitalWrite(LED_PIN, LOW);          // Initially turn off the LED
+}
+
+void loop() {
+  int motionDetected = digitalRead(PIR_PIN);  // Read the PIR sensor value
+
+  if (motionDetected == HIGH) {
+    // Motion detected, turn on the LED and reset the timer
+    if (!ledOn) {
+      digitalWrite(LED_PIN, HIGH);  // Turn on the LED
+      ledOn = true;
+      Serial.println("Motion detected! LED ON");
+    }
+    motionDetectedTime = millis();  // Update the time motion was detected
+  }
+
+  // Check if the LED should be turned off
+  if (ledOn && (millis() - motionDetectedTime > noMotionDelay)) {
+    digitalWrite(LED_PIN, LOW);   // Turn off the LED
+    ledOn = false;
+    Serial.println("No motion detected for a while. LED OFF");
+  }
+
+  delay(100);  // Short delay for stability
+}
