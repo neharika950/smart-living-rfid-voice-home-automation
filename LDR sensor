@@ -1,23 +1,27 @@
-#define LDR_PIN 19
+Ldr digital 
+use dac 
+/*
+ * This ESP32 code is created by esp32io.com
+ *
+ * This ESP32 code is released in the public domain
+ *
+ * For more detail (instruction and wiring diagram), visit https://esp32io.com/tutorials/esp32-ldr-module
+ */
+
+#define DO_PIN 25  // ESP32's pin GPIO13 connected to DO pin of the ldr module
 
 void setup() {
-  Serial.begin(115200);
-  pinMode(LDR_PIN, INPUT);
+  // initialize serial communication
+  Serial.begin(9600);
+  // initialize the ESP32's pin as an input
+  pinMode(DO_PIN, INPUT);
 }
 
 void loop() {
-  int ldrValue = analogRead(LDR_PIN);
+  int lightState = digitalRead(DO_PIN);
 
-  Serial.print("LDR Value: ");
-  Serial.println(ldrValue);
-
-  if (ldrValue > 1000) { // Adjust this threshold based on your LDR and environment
-    Serial.println("Room is dark, open the blinds.");
-    // Add code here to control blinds (e.g., using a motor or servo)
-  } else {
-    Serial.println("Room is bright, don't open the blinds.");
-    // Optionally close the blinds here if they are open
-  }
-
-  delay(1000); // Wait for 1 second before reading again
+  if (lightState == HIGH)
+    Serial.println("It is dark");
+  else
+    Serial.println("It is light");
 }
