@@ -1,35 +1,35 @@
-#define PIR_PIN 13    // Pin connected to the PIR sensor's OUT pin
-#define LED_PIN 12    // Pin connected to the LED
+#define PIR_PIN 13     // Pin connected to the PIR sensor's OUT pin
+#define LIGHT_PIN 12   // Pin connected to the LED or relay controlling the light
 
 unsigned long motionDetectedTime = 0;  // Time when motion is detected
-unsigned long noMotionDelay = 10000;   // Time (in milliseconds) to wait before turning off the LED (e.g., 10 seconds)
-bool ledOn = false;                    // Status of the LED (on or off)
+unsigned long noMotionDelay = 10000;   // Time (in milliseconds) to wait before turning off the light (e.g., 10 seconds)
+bool lightOn = false;                  // Status of the light (on or off)
 
 void setup() {
   pinMode(PIR_PIN, INPUT);             // PIR sensor pin as input
-  pinMode(LED_PIN, OUTPUT);             // LED pin as output
-  Serial.begin(115200);                // Initialize serial communication at 115200 baud rate
-  digitalWrite(LED_PIN, LOW);          // Initially turn off the LED
+  pinMode(LIGHT_PIN, OUTPUT);          // Light pin as output
+  Serial.begin(9600);                  // Initialize serial communication
+  digitalWrite(LIGHT_PIN, LOW);        // Initially turn off the light
 }
 
 void loop() {
   int motionDetected = digitalRead(PIR_PIN);  // Read the PIR sensor value
 
   if (motionDetected == HIGH) {
-    // Motion detected, turn on the LED and reset the timer
-    if (!ledOn) {
-      digitalWrite(LED_PIN, HIGH);  // Turn on the LED
-      ledOn = true;
-      Serial.println("Motion detected! LED ON");
+    // Motion detected, turn on the light and reset the timer
+    if (!lightOn) {
+      digitalWrite(LIGHT_PIN, HIGH);  // Turn on the light
+      lightOn = true;
+      Serial.println("Motion detected! Light ON");
     }
     motionDetectedTime = millis();  // Update the time motion was detected
   }
 
-  // Check if the LED should be turned off
-  if (ledOn && (millis() - motionDetectedTime > noMotionDelay)) {
-    digitalWrite(LED_PIN, LOW);   // Turn off the LED
-    ledOn = false;
-    Serial.println("No motion detected for a while. LED OFF");
+  // Check if the light should be turned off
+  if (lightOn && (millis() - motionDetectedTime > noMotionDelay)) {
+    digitalWrite(LIGHT_PIN, LOW);   // Turn off the light
+    lightOn = false;
+    Serial.println("No motion detected for a while. Light OFF");
   }
 
   delay(100);  // Short delay for stability
