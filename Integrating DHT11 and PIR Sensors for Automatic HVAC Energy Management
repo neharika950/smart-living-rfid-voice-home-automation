@@ -1,0 +1,60 @@
+#include <DHT.h>
+
+#define DHTPIN 19       // Pin connected to DHT11 sensor
+#define DHTTYPE DHT11   // Define sensor type as DHT11
+#define PIR_PIN 13     // Pin connected to PIR sensor
+#define HVAC_PIN 12     // Pin connected to LED for HVAC control
+
+DHT dht(DHTPIN, DHTTYPE); // Initialize DHT sensor
+
+void setup() {
+  Serial.begin(115200); // Start serial communication
+  dht.begin();          // Start the DHT sensor
+  pinMode(PIR_PIN, INPUT);  // PIR sensor as input
+  pinMode(HVAC_PIN, OUTPUT); // HVAC control pin as output
+  digitalWrite(HVAC_PIN, LOW); // Initially turn off HVAC
+}
+
+void loop() {
+  // Read PIR sensor
+  int motionDetected = digitalRead(PIR_PIN);
+  
+  // Read temperature and humidity
+  float h = dht.readHumidity();
+  float t = dht.readTemperature(); // Temperature in Celsius
+
+  // Check for reading errors
+  if (isnan(h) || isnan(t)) {
+    Serial.println("Failed to read from DHT sensor!");
+    return;
+  }
+
+  // Log temperature and humidity
+  Serial.print("Temperature: ");
+  Serial.print(t);
+  Serial.print(" °C, Humidity: ");
+  Serial.print(h);
+  Serial.println(" %");
+
+  // Control HVAC based on sensor readings
+  if (motionDetected == HIGH) {
+    // If motion is detected
+    Serial.println("Motion detected, checking temperature and humidity...");
+
+    if (t > 24.0 || h > 60.0) { // Thresholds for HVAC activation
+      // Activate HVAC
+      digitalWrite(HVAC_PIN, HIGH);
+      Serial.println("HVAC ON");
+    } else {
+      // Turn off HVAC if conditions are optimal
+      digitalWrite(HVAC_PIN, LOW);
+      Serial.println("HVAC OFF - Conditions are optimal");
+    }
+  } else {
+    // No motion detected
+    digitalWrite(HVAC_PIN, LOW);
+    Serial.println("No motion detected, HVAC OFF");
+  }
+
+  delay(2000); // Wait for 2 seconds before next reading
+}
