@@ -1,0 +1,65 @@
+% Load the dataset
+data = readtable('C:\Users\VAISHNAVI\Desktop\stuff\smart_home_energy_usage_dataset.csv'); % Replace with your file path
+
+% Display the first few rows of the dataset to understand its structure
+disp(head(data));
+
+% Get user input for house number
+house_number = input('Enter the house number to analyze: ');
+
+% Filter the data for the specified house
+house_data = data(data.home_id == house_number, :);
+
+if isempty(house_data)
+    fprintf('No data found for House ID %d.\n', house_number);
+else
+    % Calculate average energy consumption for the specified house
+    average_consumption = mean(house_data.energy_consumption_kWh);
+    fprintf('Average Energy Consumption for House ID %d: %.2f kWh\n', house_number, average_consumption);
+    
+    % Prepare the feature matrix (use only numerical features)
+    features = [house_data.temperature_setting_C, house_data.usage_duration_minutes];
+
+    % Prepare the label (energy consumption)
+    labels = house_data.energy_consumption_kWh;
+
+    % Fit a simple linear regression model
+    mdl = fitlm(features, labels);
+
+    % Display model summary
+    disp(mdl);
+
+    % Initialize an array to store predicted consumption for each appliance
+    appliances = unique(house_data.appliance);
+    appliance_predictions = zeros(length(appliances), 1);
+    
+    % Loop through each appliance to predict energy consumption
+    for i = 1:length(appliances)
+        appliance_name = appliances{i};
+        appliance_data = house_data(strcmp(house_data.appliance, appliance_name), :);
+
+        % Average features for the current appliance
+        avg_temp = mean(appliance_data.temperature_setting_C);
+        avg_duration = mean(appliance_data.usage_duration_minutes);
+
+        % Predict energy consumption using the fitted model
+        predicted_data = [avg_temp, avg_duration];
+        appliance_predictions(i) = predict(mdl, predicted_data);
+    end
+
+    % Display results for each appliance
+    fprintf('Analysis for House ID %d:\n', house_number);
+    for i = 1:length(appliances)
+        appliance_name = appliances{i};
+        actual_usage = mean(house_data.energy_consumption_kWh(strcmp(house_data.appliance, appliance_name)));
+
+        fprintf('Appliance: %s | Actual Usage: %.2f kWh | Predicted Usage: %.2f kWh\n', ...
+            appliance_name, actual_usage, appliance_predictions(i));
+        
+        if actual_usage > appliance_predictions(i)
+            fprintf('  - %s is potentially wasting energy.\n', appliance_name);
+        else
+            fprintf('  - %s is using energy efficiently.\n', appliance_name);
+        end
+    end
+end
