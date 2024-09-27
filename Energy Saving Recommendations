@@ -137,3 +137,4 @@ ylabel('Energy Consumption (kWh)');
 legend('Location', 'Best');
 grid on;
 hold off;
+
