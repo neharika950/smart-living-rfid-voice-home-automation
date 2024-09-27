@@ -1,0 +1,139 @@
+clc
+clear all
+close all
+% Step 1: Load the Dataset from the specified path
+data = readtable("C:\Users\VAISHNAVI\Desktop\stuff\smart_home_energy_usage_dataset.csv");
+
+% Step 2: Inspect the Dataset
+disp('Column Names in Dataset:');
+disp(data.Properties.VariableNames);
+
+% Step 3: Ask for user input for home_id
+home_id_input = input('Enter the home ID to analyze: ');
+
+% Step 4: Filter the dataset for the specified home_id
+home_data = data(data.home_id == home_id_input, :);
+
+% Check if there's data for the specified home_id
+if isempty(home_data)
+    error('No data found for the specified home ID.');
+end
+
+% Step 5: Analyze overall energy consumption of the filtered data
+totalEnergy = sum(home_data.energy_consumption_kWh);
+averageEnergy = mean(home_data.energy_consumption_kWh);
+fprintf('Total Energy Consumption: %.2f kWh\n', totalEnergy);
+fprintf('Average Energy Consumption: %.2f kWh\n', averageEnergy);
+
+% Set the threshold at 180% of average consumption
+threshold = 1.8 * averageEnergy;
+fprintf('Threshold for high consumption set at: %.2f kWh\n', threshold);
+
+% Initialize counter for over usage
+overUsageCount = 0;
+
+% Step 6: Prepare features and target variable
+X = [home_data.temperature_setting_C, ...
+     double(strcmp(home_data.occupancy_status, 'occupied')), ... % Convert occupancy to binary
+     home_data.usage_duration_minutes]; % Features
+Y = home_data.energy_consumption_kWh; % Target variable (total energy consumption)
+
+% Normalize the features
+X = normalize(X);
+
+% Step 7: Split the data into training and testing sets (80% training, 20% testing)
+cv = cvpartition(size(X, 1), 'HoldOut', 0.2);
+trainIdx = training(cv);
+testIdx = test(cv);
+
+X_train = X(trainIdx, :);
+Y_train = Y(trainIdx);
+X_test = X(testIdx, :);
+Y_test = Y(testIdx);
+
+% Step 8: Train a Regression Model (Using Linear Regression)
+mdl = fitlm(X_train, Y_train);
+
+% Step 9: Evaluate the Model on Test Data
+Y_pred = predict(mdl, X_test);
+rmse = sqrt(mean((Y_test - Y_pred).^2)); % Root Mean Squared Error
+fprintf('Model RMSE on test set: %.2f\n', rmse);
+
+% Step 10: Check for over usage based on the 180% mean threshold
+for i = 1:height(home_data)
+    currentEnergy = home_data.energy_consumption_kWh(i);
+    appliance = home_data.appliance{i};
+    timestamp = home_data.timestamp(i); % Extract timestamp for high usage reporting
+
+    if currentEnergy > threshold
+        % Calculate the difference between actual consumption and average
+        difference = currentEnergy - averageEnergy;
+
+        % Display the details of high consumption
+        fprintf(' - High consumption detected: %.2f kWh on %s for %s.\n', currentEnergy, datestr(timestamp), appliance);
+        fprintf('   Difference from average: %.2f kWh\n', difference);
+        
+        % Increment the over usage count
+        overUsageCount = overUsageCount + 1;
+
+        % Provide specific recommendations based on appliance type
+        switch appliance
+            case 'HVAC'
+                fprintf('   * Check thermostat settings. Adjusting by just a few degrees can save energy.\n');
+                fprintf('   * Ensure your HVAC system is well-maintained and consider scheduling regular service checks.\n');
+            case 'Lighting'
+                fprintf('   * Switch to LED bulbs if you haven’t already; they use up to 80% less energy than traditional bulbs.\n');
+                fprintf('   * Use smart lighting systems to automate and optimize lighting based on occupancy.\n');
+            case 'Refrigerator'
+                fprintf('   * Keep your refrigerator set at 35-38°F (1.7-3.3°C) for optimal efficiency.\n');
+                fprintf('   * Regularly check seals on doors to ensure no cool air is escaping.\n');
+            case 'Washing Machine'
+                fprintf('   * Use cold water for washing when possible; it uses less energy compared to hot water.\n');
+                fprintf('   * Only run full loads to maximize efficiency.\n');
+            case 'Dishwasher'
+                fprintf('   * Run the dishwasher only when it’s full. This maximizes water and energy efficiency.\n');
+                fprintf('   * Avoid pre-rinsing dishes; modern dishwashers can handle food residue without extra rinsing.\n');
+            case 'Electronics'
+                fprintf('   * Unplug electronics when not in use, or use a smart power strip to manage standby power.\n');
+                fprintf('   * Consider energy-efficient models if you are looking to replace older appliances.\n');
+            otherwise
+                fprintf('   * Monitor usage closely and adjust habits to minimize unnecessary energy consumption.\n');
+        end
+        
+        fprintf('   * Overall, implementing energy-saving practices can significantly reduce your monthly bill.\n');
+    end
+end
+
+% Display total count of over usage incidents
+fprintf('Total instances of high consumption: %d\n', overUsageCount);
+
+% Step 11: Randomly sample 100 elements for visualization
+sampleSize = 100;
+if height(home_data) < sampleSize
+    sampleSize = height(home_data); % Adjust sample size if not enough data
+end
+randomIndices = randperm(height(home_data), sampleSize);
+sampleData = home_data(randomIndices, :);
+
+% Step 12: Prepare data for plotting
+xValues = 1:sampleSize; % X-axis values (1 to 100)
+yValues = sampleData.energy_consumption_kWh; % Y-axis values (energy consumption)
+
+% Step 13: Plotting the energy consumption
+figure;
+hold on;
+plot(xValues, yValues, 'b-', 'DisplayName', 'Energy Consumption'); % Plot all samples
+yline(threshold, 'r--', 'Threshold (180% Mean)', 'LabelHorizontalAlignment', 'left'); % Threshold line
+yline(threshold/1.8, 'r--', 'Threshold (Mean)', 'LabelHorizontalAlignment', 'left'); % Threshold line
+
+% Highlighting abnormal consumption
+abnormalIndices = find(yValues > threshold);
+plot(abnormalIndices, yValues(abnormalIndices), 'ro', 'MarkerFaceColor', 'r', 'DisplayName', 'Abnormal Consumption');
+
+% Step 14: Customize the plot
+title('Energy Consumption of Random Sample (100 Elements)');
+xlabel('Sample Index');
+ylabel('Energy Consumption (kWh)');
+legend('Location', 'Best');
+grid on;
+hold off;
