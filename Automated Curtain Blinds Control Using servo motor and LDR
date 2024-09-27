@@ -1,0 +1,36 @@
+#include <ESP32Servo.h>
+
+#define DO_PIN 34   // ESP32's GPIO34 connected to the DO pin of the LDR module
+#define SERVO_PIN 13 // Pin for the servo motor (use a PWM-capable pin)
+
+Servo servo; // Create a servo object
+
+void setup() {
+  // Initialize serial communication
+  Serial.begin(9600);
+
+  // Initialize the LDR pin as an input
+  pinMode(DO_PIN, INPUT);
+
+  // Attach the servo motor to the specified pin
+  servo.attach(SERVO_PIN);
+  servo.write(0); // Start with the servo at 0 degrees
+}
+
+void loop() { 
+  // Read the digital output from the LDR module
+  int lightState = digitalRead(DO_PIN);
+
+  // Check if it's dark
+  if (lightState == HIGH) {
+    // It's dark, rotate the servo to 90 degrees
+    servo.write(90);
+    Serial.println("It is dark - Servo at 90 degrees");
+  } else {
+    // It's light, rotate the servo to 0 degrees
+    servo.write(0);
+    Serial.println("It is light - Servo at 0 degrees");
+  }
+
+  delay(15000); // Small delay for stability
+}
