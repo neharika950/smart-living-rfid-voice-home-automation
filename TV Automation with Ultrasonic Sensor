@@ -1,0 +1,86 @@
+#define TRIG_PIN 5    // Ultrasonic TRIG pin
+#define ECHO_PIN 4   // Ultrasonic ECHO pin
+#define TV_PIN 21      // Pin to control relay (TV on/off)
+
+unsigned long detectionStartTime = 0;
+unsigned long noDetectionStartTime = 0;
+
+bool isCloseToTV = false;
+bool isTVOn = false;
+
+int closeDistanceThreshold = 50;  // Distance threshold to consider someone is near the TV (in cm)
+int detectionDuration = 30000;    // Time threshold (30 seconds) in milliseconds
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(TRIG_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+  pinMode(TV_PIN, OUTPUT);
+  
+  digitalWrite(TV_PIN, LOW);  // Ensure the TV (relay) is off initially
+}
+
+void loop() {
+  long distance = measureDistance();  // Measure distance using ultrasonic sensor
+  
+  // If someone is close to the TV (within the threshold distance)
+  if (distance < closeDistanceThreshold) {
+    if (!isCloseToTV) {
+      // If detection starts, note the time
+      detectionStartTime = millis();
+      isCloseToTV = true;
+    } else if (millis() - detectionStartTime >= detectionDuration && !isTVOn) {
+      // If close to the TV for more than 30 seconds and TV is off, turn on the TV
+      turnOnTV();
+    }
+    noDetectionStartTime = 0;  // Reset no detection timer
+  } else {
+    if (isCloseToTV) {
+      // If no longer close to TV, note the time
+      noDetectionStartTime = millis();
+      isCloseToTV = false;
+    } else if (millis() - noDetectionStartTime >= detectionDuration && isTVOn) {
+      // If no one is detected for more than 30 seconds and TV is on, turn off the TV
+      turnOffTV();
+    }
+    detectionStartTime = 0;  // Reset detection timer
+  }
+  
+  delay(500);  // Check every 500 ms
+}
+
+// Function to measure distance using the ultrasonic sensor
+long measureDistance() {
+  // Send a pulse from the TRIG pin
+  digitalWrite(TRIG_PIN, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TRIG_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG_PIN, LOW);
+
+  // Measure the time for the pulse to return
+  long duration = pulseIn(ECHO_PIN, HIGH);
+
+  // Calculate distance in cm
+  long distance = duration * 0.034 / 2;
+  
+  Serial.print("Distance: ");
+  Serial.print(distance);
+  Serial.println(" cm");
+  
+  return distance;
+}
+
+// Function to turn on the TV (relay)
+void turnOnTV() {
+  digitalWrite(TV_PIN, HIGH);  // Set TV_PIN high to turn on the relay
+  isTVOn = true;
+  Serial.println("TV turned ON.");
+}
+
+// Function to turn off the TV (relay)
+void turnOffTV() {
+  digitalWrite(TV_PIN, LOW);  // Set TV_PIN low to turn off the relay
+  isTVOn = false;
+  Serial.println("TV turned OFF.");
+}
