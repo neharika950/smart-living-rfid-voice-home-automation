@@ -1,0 +1,32 @@
+#define BLYNK_AUTH_TOKEN "KJzb5nh0OSKpcuN4wPoJXHXzAYfPY0o3"  // Your Blynk Auth Token
+
+#define BLYNK_PRINT Serial
+#include <WiFi.h>
+#include <WiFiClient.h>
+#include <BlynkSimpleEsp32.h>
+
+// Your WiFi credentials
+char ssid[] = "vivo";  // Replace with your Wi-Fi SSID
+char pass[] = "123454321";   // Replace with your Wi-Fi password
+
+// Pin to control the light (or relay)
+#define LIGHT_PIN 2
+
+void setup() {
+  // Start Serial Monitor for debugging
+  Serial.begin(9600);
+  
+  // Set the LIGHT_PIN as output and initialize it to LOW (turn off the light initially)
+  pinMode(LIGHT_PIN, OUTPUT);
+  digitalWrite(LIGHT_PIN, LOW);
+
+  // Connect to Blynk Cloud using WiFi
+  Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass, "blynk.cloud", 80);
+
+  Serial.println("Connected to Blynk Cloud...");
+}
+
+void loop() {
+  // Keep the connection to Blynk running
+  Blynk.run();
+}
