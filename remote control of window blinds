@@ -1,1 +1,51 @@
+#define BLYNK_TEMPLATE_ID "TMPL3lE05FKYN"
+#define BLYNK_TEMPLATE_NAME "SMART ENERGY CONSERVATION SYSTEM"
+#define BLYNK_AUTH_TOKEN "vcbAUxmHDOZnbLapG8hyEeaE8bj_SHES"
 
+#define BLYNK_PRINT Serial
+#include <WiFi.h>
+#include <WiFiClient.h>
+#include <BlynkSimpleEsp32.h>
+#include <ESP32Servo.h>
+
+// Your WiFi credentials
+char ssid[] = "vivo";  // Replace with your Wi-Fi SSID
+char pass[] = "123454321";   // Replace with your Wi-Fi password
+
+// Create a Servo object
+Servo myServo;
+
+// Define the pin for the servo
+#define SERVO_PIN 5 // Pin connected to the servo
+
+void setup() {
+  // Start Serial Monitor for debugging
+  Serial.begin(9600);
+  
+  // Attach the servo to the specified pin
+  myServo.attach(SERVO_PIN);
+  
+  // Start Blynk using the defined token
+  Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass); // Use BLYNK_AUTH_TOKEN here
+}
+
+void loop() {
+  // Run Blynk
+  Blynk.run();
+
+  // Check the state of the digital pin to control the servo
+  if (digitalRead(SERVO_PIN) == HIGH) {
+    myServo.write(90); // Move servo to 90 degrees
+    Serial.println("Servo ON: 90 degrees");
+  } else {
+    myServo.write(0); // Move servo to 0 degrees
+    Serial.println("Servo OFF: 0 degrees");
+  }
+}
+
+// Function to set pin mode in Blynk
+BLYNK_WRITE(0) { // The button widget in Blynk app should be linked to pin D0
+  int value = param.asInt(); // Get the value from the button
+  pinMode(SERVO_PIN, OUTPUT);
+  digitalWrite(SERVO_PIN, value); // Set the digital pin based on button state
+}
