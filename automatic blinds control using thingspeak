@@ -1,0 +1,85 @@
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include <ESP32Servo.h>
+
+#define DO_PIN 19   // ESP32's GPIO34 connected to the DO pin of the LDR module
+#define SERVO_PIN 5 // Pin for the servo motor (use a PWM-capable pin)
+
+// Your Wi-Fi credentials
+const char* ssid = "vivo"; // Replace with your Wi-Fi SSID
+const char* password = "123454321"; // Replace with your Wi-Fi password
+
+// ThingSpeak credentials
+const char* apiKey = "2YBGD2DHJ9EK8TGQ"; // Replace with your ThingSpeak Write API Key
+const char* channelID = "2675347"; // Replace with your ThingSpeak channel ID
+
+Servo servo; // Create a servo object
+
+void setup() {
+  // Initialize serial communication
+  Serial.begin(9600);
+
+  // Initialize the LDR pin as an input
+  pinMode(DO_PIN, INPUT);
+
+  // Attach the servo motor to the specified pin
+  servo.attach(SERVO_PIN);
+  servo.write(0); // Start with the servo at 0 degrees
+
+  // Connect to Wi-Fi
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("Connected to WiFi");
+}
+
+void loop() {
+  // Read the digital output from the LDR module
+  int lightState = digitalRead(DO_PIN);
+
+  // Check if it's dark
+  if (lightState == HIGH) {
+    // It's dark, rotate the servo to 90 degrees
+    servo.write(90);
+    Serial.println("It is dark - Servo at 90 degrees");
+    
+    // Send data to ThingSpeak
+    sendToThingSpeak(1); // 1 for dark
+  } else {
+    // It's light, rotate the servo to 0 degrees
+    servo.write(0);
+    Serial.println("It is light - Servo at 0 degrees");
+    
+    // Send data to ThingSpeak
+    sendToThingSpeak(0); // 0 for light
+  }
+
+  delay(15000); // Small delay for stability
+}
+
+void sendToThingSpeak(int lightState) {
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+    
+    String url = "http://api.thingspeak.com/update?api_key=" + String(apiKey) + "&field1=" + String(lightState);
+    
+    http.begin(url); // Specify the URL
+    int httpResponseCode = http.GET(); // Send the request
+
+    if (httpResponseCode > 0) {
+      String response = http.getString(); // Get the response
+      Serial.print("HTTP Response code: ");
+      Serial.println(httpResponseCode); // Print HTTP return code
+      Serial.println(response); // Print the response
+    } else {
+      Serial.print("Error on sending GET: ");
+      Serial.println(httpResponseCode);
+    }
+    
+    http.end(); // Free resources
+  } else {
+    Serial.println("WiFi Disconnected");
+  }
+}
