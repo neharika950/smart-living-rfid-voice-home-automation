@@ -1,0 +1,83 @@
+#include <WiFi.h>
+#include <HTTPClient.h>
+
+#define PIR_PIN 13     // Pin connected to the PIR sensor's OUT pin
+#define LIGHT_PIN 12   // Pin connected to the LED
+
+// Your Wi-Fi credentials
+const char* ssid = "vivo";              // Replace with your Wi-Fi SSID
+const char* password = "123454321";     // Replace with your Wi-Fi password
+
+// ThingSpeak credentials
+const char* apiKey = "2YBGD2DHJ9EK8TGQ"; // Replace with your ThingSpeak Write API Key
+const char* channelID = "2675347";       // Replace with your ThingSpeak channel ID
+
+unsigned long motionDetectedTime = 0;  // Time when motion is detected
+unsigned long noMotionDelay = 10000;   // Delay to turn off the light (10 seconds)
+bool lightOn = false;                  // Status of the light (on or off)
+
+void setup() {
+  Serial.begin(9600);                  // Initialize serial communication
+  pinMode(PIR_PIN, INPUT);             // Set PIR sensor pin as input
+  pinMode(LIGHT_PIN, OUTPUT);          // Set LED pin as output
+  digitalWrite(LIGHT_PIN, LOW);        // Turn off the LED initially
+
+  // Connect to Wi-Fi
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nConnected to WiFi");
+}
+
+void loop() {
+  int motionDetected = digitalRead(PIR_PIN);  // Read the PIR sensor
+
+  if (motionDetected == HIGH) {
+    // Motion detected, turn on the LED and reset the timer
+    if (!lightOn) {
+      digitalWrite(LIGHT_PIN, HIGH);  // Turn on the LED
+      lightOn = true;
+      motionDetectedTime = millis();   // Update the time motion was detected
+      Serial.println("Motion detected! Light ON");
+      sendToThingSpeak(1); // Send 1 to ThingSpeak for light ON
+    }
+  }
+
+  // Check if the LED should be turned off
+  if (lightOn && (millis() - motionDetectedTime > noMotionDelay)) {
+    digitalWrite(LIGHT_PIN, LOW);     // Turn off the LED
+    lightOn = false;
+    Serial.println("No motion detected. Light OFF");
+    sendToThingSpeak(0); // Send 0 to ThingSpeak for light OFF
+  }
+
+  delay(100);  // Short delay for stability
+}
+
+void sendToThingSpeak(int lightState) {
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+    
+    // Updated URL to include channel ID
+    String url = "http://api.thingspeak.com/update?api_key=" + String(apiKey) + "&field1=" + String(lightState) + "&field2=" + String(channelID);
+    
+    http.begin(url); // Specify the URL
+    int httpResponseCode = http.GET(); // Send the request
+
+    if (httpResponseCode > 0) {
+      String response = http.getString(); // Get the response
+      Serial.print("HTTP Response code: ");
+      Serial.println(httpResponseCode); // Print HTTP return code
+      Serial.println(response); // Print the response
+    } else {
+      Serial.print("Error on sending GET: ");
+      Serial.println(httpResponseCode);
+    }
+    
+    http.end(); // Free resources
+  } else {
+    Serial.println("WiFi Disconnected");
+  }
+}
