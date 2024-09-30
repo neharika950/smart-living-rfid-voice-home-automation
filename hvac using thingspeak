@@ -1,0 +1,117 @@
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include <DHT.h>
+
+#define DHTPIN 19       // Pin connected to DHT11 sensor
+#define DHTTYPE DHT11   // Define sensor type as DHT11
+#define PIR_PIN 25     // Pin connected to PIR sensor
+#define HVAC_PIN 27    // Pin connected to LED for HVAC control
+
+// Your Wi-Fi credentials
+const char* ssid = "vivo";              // Replace with your Wi-Fi SSID
+const char* password = "123454321";     // Replace with your Wi-Fi password
+
+// ThingSpeak credentials
+const char* apiKey = "2YBGD2DHJ9EK8TGQ"; // Replace with your ThingSpeak Write API Key
+const char* channelID = "2675347";      // Replace with your ThingSpeak channel ID
+
+DHT dht(DHTPIN, DHTTYPE); // Initialize DHT sensor
+
+unsigned long lastMotionTime = 0; // Time of the last motion detected
+const unsigned long noMotionDelay = 5000; // Time to wait before turning off HVAC (5 seconds)
+const float coolThreshold = 18.0; // Temperature threshold for turning off HVAC (in °C)
+
+void setup() {
+  Serial.begin(115200); // Start serial communication
+  dht.begin();          // Start the DHT sensor
+  pinMode(PIR_PIN, INPUT);  // PIR sensor as input
+  pinMode(HVAC_PIN, OUTPUT); // HVAC control pin as output
+  digitalWrite(HVAC_PIN, LOW); // Initially turn off HVAC
+  
+  // Connect to Wi-Fi
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("Connected to WiFi");
+}
+
+void loop() {
+  // Read PIR sensor
+  int motionDetected = digitalRead(PIR_PIN);
+  
+  // Read temperature and humidity
+  float h = dht.readHumidity();
+  float t = dht.readTemperature(); // Temperature in Celsius
+
+  // Check for reading errors
+  if (isnan(h) || isnan(t)) {
+    Serial.println("Failed to read from DHT sensor!");
+    return;
+  }
+
+  // Log temperature and humidity
+  Serial.print("Temperature: ");
+  Serial.print(t);
+  Serial.print(" °C, Humidity: ");
+  Serial.print(h);
+  Serial.println(" %");
+
+  // Control HVAC based on sensor readings
+  if (motionDetected == HIGH) {
+    // Motion detected
+    lastMotionTime = millis(); // Update the last motion time
+    Serial.println("Motion detected, checking temperature and humidity...");
+
+    if (t > 24.0 || h > 60.0) { // Thresholds for HVAC activation
+      // Activate HVAC
+      digitalWrite(HVAC_PIN, HIGH);
+      Serial.println("HVAC ON");
+      sendToThingSpeak(t, h); // Send readings to ThingSpeak
+    } else if (t < coolThreshold) {
+      // Turn off HVAC if it's too cool
+      digitalWrite(HVAC_PIN, LOW);
+      Serial.println("HVAC OFF - It's too cool");
+    } else {
+      // Turn off HVAC if conditions are optimal
+      digitalWrite(HVAC_PIN, LOW);
+      Serial.println("HVAC OFF - Conditions are optimal");
+    }
+  } else {
+    // No motion detected, check if we need to turn off HVAC
+    if (millis() - lastMotionTime > noMotionDelay) {
+      digitalWrite(HVAC_PIN, LOW); // Turn off HVAC after no motion for 5 seconds
+      Serial.println("No motion detected for 5 seconds, HVAC OFF");
+    }
+  }
+
+  delay(2000); // Wait for 2 seconds before next reading
+}
+
+void sendToThingSpeak(float temperature, float humidity) {
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+    
+    String url = "http://api.thingspeak.com/update?api_key=" + String(apiKey) +
+                  "&field1=" + String(temperature) +
+                  "&field2=" + String(humidity);
+    
+    http.begin(url); // Specify the URL
+    int httpResponseCode = http.GET(); // Send the request
+
+    if (httpResponseCode > 0) {
+      String response = http.getString(); // Get the response
+      Serial.print("HTTP Response code: ");
+      Serial.println(httpResponseCode); // Print HTTP return code
+      Serial.println(response); // Print the response
+    } else {
+      Serial.print("Error on sending GET: ");
+      Serial.println(httpResponseCode);
+    }
+    
+    http.end(); // Free resources
+  } else {
+    Serial.println("WiFi Disconnected");
+  }
+}
