@@ -14,7 +14,6 @@ This project implements a secure and intelligent home automation system using ES
 
 For detailed circuit diagrams, source code explanations, hardware setup, and workflow, please refer to the attached PDF:
 
-👉 [MCA_REPORT.pdf](./docs/MCA_REPORT.pdf)
 
 ## 👩‍💻 Contributors
 
